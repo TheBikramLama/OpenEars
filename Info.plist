@@ -31,6 +31,12 @@
     <string>14.0</string>
     <key>LSUIElement</key>
     <true/>
+    <key>SUFeedURL</key>
+    <string>https://github.com/TheBikramLama/OpenEars/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>EzPqMaU78CMe7Tm1CG2fhRudSRlCCWiRFFUncxmqSpo=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>OpenEar plays the sound around you into your headphones.</string>
 </dict>

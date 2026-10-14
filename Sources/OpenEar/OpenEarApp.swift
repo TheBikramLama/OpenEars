@@ -1,6 +1,7 @@
 import AppKit
 import Carbon
 import Combine
+import Sparkle
 import SwiftUI
 
 @main
@@ -9,7 +10,7 @@ struct OpenEarApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuView(controller: appDelegate.controller)
+            MenuView(controller: appDelegate.controller) { appDelegate.checkForUpdates() }
         } label: {
             MenuBarIcon(controller: appDelegate.controller)
         }
@@ -22,6 +23,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let controller = OpenEarController()
     private let hotKeys = HotKeys()
     private let hud = StatusHUD()
+    // Checks the GitHub releases feed daily and offers new versions, verified with the EdDSA key in Info.plist.
+    private let updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+
+    func checkForUpdates() {
+        NSApp.activate()
+        updater.checkForUpdates(nil)
+    }
     private var subscriptions = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -68,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Otherwise SoX keeps running after the app quits.
+        // Puts the system volume back if OpenEar quits mid-duck.
         controller.shutdown()
     }
 }

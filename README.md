@@ -7,12 +7,22 @@ AirPods can let the world in. Wired IEMs can't. OpenEar plays your Mac's microph
 ## Features
 
 - **Ambient sound** on and off from the menu bar, a timer (15m to 8h, or until a set time) or a weekly schedule
+- **Hold to hear**: hold `⌃⌥⌘H` to let the room in, release to go back to quiet
 - **Super hearing** makes quiet sounds and voices louder and caps loud ones, so a slammed door won't blast your ears
-- **Sound controls**: volume, bass, treble and rumble cut
-- **Global shortcuts**: `⌃⌥⌘O` toggles ambient sound, `⌃⌥⌘S` toggles super hearing
+- **Noise reduction** quiets steady background hiss and hum between sounds
+- **Presets**: Home, Office, Café and Outdoors, plus your own. Right-click one of yours to delete it
+- **Sound controls**: volume, bass, treble, rumble cut and latency, with a live mic level meter
+- **Pause during calls** stops while Zoom, FaceTime or another app uses the mic, and resumes after
+- **Sound alerts** notify you about a doorbell, knock, smoke alarm, siren, phone, crying baby, barking dog or shouting, even while ambient sound is off. They can also let the room in for 30 seconds
+- **Lower music when someone talks** turns your headphones down while people nearby speak. Off by default
+- **Start when headphones connect**, for headphones you've used OpenEar with before
+- **Global shortcuts**: `⌃⌥⌘O` toggles ambient sound, `⌃⌥⌘S` toggles super hearing, hold `⌃⌥⌘H` to hear
 - **Feedback guard** pauses automatically if your Mac switches to its speakers, and resumes when your headphones come back
 - **Recovers by itself** if macOS interrupts the microphone, for example after sleep
+- **In-app updates**: OpenEar checks GitHub for new versions. Use **Check for Updates…** in the menu any time
 - **URL commands** for Shortcuts, Raycast or scripts: `open "openear://toggle"` (also `on`, `off`, `super`)
+
+Sound recognition runs on your Mac with Apple's built-in classifier. No audio leaves your computer.
 
 ## Install
 
@@ -43,12 +53,12 @@ xattr -dr com.apple.quarantine /Applications/OpenEar.app && open /Applications/O
 
 - The MacBook's built-in microphones hear the room best. Headphone cable mics mostly pick up your own voice.
 - Expect a small delay on your own voice. Software on a Mac can't react as fast as the dedicated chips in AirPods. A lower **Latency** setting helps, until you hear crackling.
-- Turn OpenEar off during video calls, or you'll hear yourself.
+- **Pause during calls** is on by default, so you won't hear yourself on Zoom or FaceTime.
+- After an update, macOS may ask for microphone access again. Allow it once more.
 
 ## Build from source
 
 ```bash
-brew install sox dylibbundler
 scripts/build.sh      # build/OpenEar.app
 scripts/make-dmg.sh   # dist/OpenEar-<version>.dmg
 ```
@@ -59,13 +69,20 @@ The app icon and the installer window background are drawn in code. After editin
 
 ## Releasing
 
-Push a version tag. GitHub Actions builds the DMG and publishes a release with it.
+Push a version tag. GitHub Actions builds the DMG, signs the update feed and publishes a release with both.
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
+In-app updates need the repository secret `SPARKLE_PRIVATE_KEY`. Tagged builds fail without it. Create it once with Sparkle's `generate_keys` tool, found in `.build/artifacts/sparkle/Sparkle/bin` after a build:
+
+```bash
+generate_keys --account openear             # prints the public key for SUPublicEDKey in Info.plist
+generate_keys --account openear -x key.txt  # paste key.txt into the secret, then delete it
+```
+
 ## Licence
 
-OpenEar is MIT licensed. It bundles [SoX](https://sourceforge.net/projects/sox/), which is GPL licensed and runs as a separate program. Its licence is included in the app at `Contents/Resources/SoX-LICENSE.GPL`.
+OpenEar is MIT licensed. It bundles [Sparkle](https://sparkle-project.org) for updates, which is MIT licensed too.

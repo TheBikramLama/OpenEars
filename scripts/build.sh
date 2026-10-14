@@ -19,7 +19,14 @@ plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$APP/Contents/Info.plis
 cp LICENSE "$APP/Contents/Resources/LICENSE"
 cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
+# Sparkle, for in-app updates. SwiftPM downloads it but doesn't bundle it.
+mkdir -p "$APP/Contents/Frameworks"
+SPARKLE=$(find .build/artifacts -path "*macos*/Sparkle.framework" -maxdepth 6 | head -1)
+cp -R "$SPARKLE" "$APP/Contents/Frameworks/"
+
 # Ad-hoc signing lets macOS remember the microphone permission between launches.
+# Sign the framework first; the app signature seals it.
+codesign --force --deep --sign - "$APP/Contents/Frameworks/Sparkle.framework"
 codesign --force --sign - "$APP"
 
 echo "Built $APP ($VERSION)"

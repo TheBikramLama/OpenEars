@@ -30,6 +30,14 @@ jobs:
       - name: Build DMG
         run: scripts/make-dmg.sh
 
+      # Sparkle reads appcast.xml from the latest release to offer in-app updates.
+      # Fails the release if the SPARKLE_PRIVATE_KEY secret is missing, so a release never ships without one.
+      - name: Sign update feed
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: scripts/make-appcast.sh
+
       - uses: actions/upload-artifact@v4
         with:
           name: OpenEar-${{ env.VERSION }}

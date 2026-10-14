@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuView: View {
     @ObservedObject var controller: OpenEarController
+    let checkForUpdates: () -> Void
 
     private let buffers: [(frames: Int, label: String)] = [
         (64, "Lowest (may crackle)"),
@@ -44,6 +45,7 @@ struct MenuView: View {
             HStack {
                 Button("Reset sound") { controller.resetAudioSettings() }
                 Spacer()
+                Button("Check for Updates…", action: checkForUpdates)
                 Button("Quit") { NSApplication.shared.terminate(nil) }
             }
         }
