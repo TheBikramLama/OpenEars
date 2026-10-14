@@ -98,16 +98,28 @@ struct MenuView: View {
         }
     }
 
-    private func pill(_ title: String, systemImage: String? = nil, isActive: Bool, action: @escaping () -> Void) -> some View {
+    /// `leading` lines up icons and titles down a column, for lists like the alert sounds.
+    private func pill(_ title: String, systemImage: String? = nil, isActive: Bool, leading: Bool = false,
+                      action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Group {
-                if let systemImage { Label(title, systemImage: systemImage) } else { Text(title) }
+                if let systemImage, leading {
+                    HStack(spacing: 6) {
+                        // Symbols differ in width, so give each the same slot to keep the titles aligned.
+                        Image(systemName: systemImage).frame(width: 18)
+                        Text(title)
+                    }
+                } else if let systemImage {
+                    Label(title, systemImage: systemImage)
+                } else {
+                    Text(title)
+                }
             }
             .font(.callout.weight(.semibold))
             .lineLimit(1)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: leading ? .leading : .center)
             .padding(.vertical, 6)
-            .padding(.horizontal, 4)
+            .padding(.horizontal, leading ? 12 : 4)
             .foregroundStyle(isActive ? Color.white : Color.primary)
             .background(isActive ? Color.accentColor : Color.primary.opacity(0.1), in: Capsule())
             .contentShape(Capsule())
@@ -245,7 +257,7 @@ struct MenuView: View {
             if controller.settings.alertsEnabled {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 2), spacing: 6) {
                     ForEach(AlertSound.allCases) { sound in
-                        pill(sound.title, systemImage: sound.symbol, isActive: controller.settings.alertSounds.contains(sound)) {
+                        pill(sound.title, systemImage: sound.symbol, isActive: controller.settings.alertSounds.contains(sound), leading: true) {
                             if controller.settings.alertSounds.contains(sound) {
                                 controller.settings.alertSounds.remove(sound)
                             } else {
