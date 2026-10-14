@@ -52,3 +52,9 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+          body: |
+            Download **OpenEar-${{ env.VERSION }}.dmg** below, open it and drag OpenEar to Applications.
+
+            macOS blocks the app the first time because it isn't notarized. See [First launch](https://github.com/TheBikramLama/OpenEars#first-launch) for the one-time steps.
+
+            ![First launch walkthrough](https://raw.githubusercontent.com/TheBikramLama/OpenEars/main/assets/install-guide.gif)

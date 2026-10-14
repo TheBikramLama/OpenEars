@@ -1,5 +1,5 @@
 #!/bin/bash
-# Regenerates assets/AppIcon.icns and assets/dmg-background.tiff from scripts/render-art.swift.
+# Regenerates the app icon, DMG background and install guide GIF in assets/.
 # The outputs are committed, so builds don't need to run this.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -21,5 +21,6 @@ iconutil -c icns "$ICONSET" -o assets/AppIcon.icns
 # One TIFF holding both resolutions, so the DMG window is sharp on Retina screens.
 tiffutil -cathidpicheck "$WORK/dmg-background.png" "$WORK/dmg-background@2x.png" -out assets/dmg-background.tiff 2> /dev/null
 cp "$WORK/icon-1024.png" assets/icon-1024.png
+swift scripts/render-install-guide.swift assets/install-guide.gif assets/icon-1024.png
 
 echo "Rendered assets/"

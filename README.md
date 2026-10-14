@@ -18,10 +18,26 @@ AirPods can let the world in. Wired IEMs can't. OpenEar plays your Mac's microph
 
 1. Download the latest `OpenEar-x.y.z.dmg` from [Releases](https://github.com/TheBikramLama/OpenEars/releases).
 2. Open it and drag **OpenEar** to **Applications**.
-3. Open OpenEar. macOS will block it the first time, because the app isn't notarized by Apple. Go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+3. Open OpenEar. The first time, macOS blocks it because the app isn't notarized by Apple. Follow [First launch](#first-launch) below. You only do this once.
 4. Allow microphone access when asked.
 
 Needs macOS 14 or later on Apple Silicon.
+
+### First launch
+
+<p align="center"><img src="assets/install-guide.gif" alt="Walkthrough of opening OpenEar the first time" width="640"></p>
+
+1. When **“OpenEar” Not Opened** appears, click **Done**. Not Move to Trash.
+2. Open **System Settings → Privacy & Security**, scroll down to **Security** and click **Open Anyway** next to “OpenEar” was blocked. The button only shows for about an hour after step 1. If it's gone, open OpenEar again and repeat.
+3. Click **Open Anyway** again in the dialog that appears.
+4. Confirm with Touch ID or your password.
+5. Done! OpenEar is in your menu bar.
+
+Comfortable with Terminal? This does the same in one go:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/OpenEar.app && open /Applications/OpenEar.app
+```
 
 ## Tips
 
