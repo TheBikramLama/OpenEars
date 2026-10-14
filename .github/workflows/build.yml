@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SoX
+        run: brew install sox dylibbundler
+
+      - name: Pick version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=0.0.0-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          fi
+          echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Build app
+        run: scripts/build.sh
+
+      - name: Check bundled SoX runs without Homebrew paths
+        run: |
+          if otool -L build/OpenEar.app/Contents/MacOS/sox build/OpenEar.app/Contents/Frameworks/*.dylib | grep /opt/homebrew; then
+            echo "::error::Bundled SoX still links to Homebrew"
+            exit 1
+          fi
+          build/OpenEar.app/Contents/MacOS/sox --version
+
+      - name: Build DMG
+        run: scripts/make-dmg.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenEar-${{ env.VERSION }}
+          path: dist/*
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
