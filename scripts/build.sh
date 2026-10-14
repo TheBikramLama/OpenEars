@@ -30,6 +30,7 @@ dylibbundler --overwrite-files --bundle-deps \
 # SoX is GPL. It ships as a separate program, and its licence travels with it.
 cp "$SOX_PREFIX/LICENSE.GPL" "$APP/Contents/Resources/SoX-LICENSE.GPL"
 cp LICENSE "$APP/Contents/Resources/LICENSE"
+cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # Ad-hoc signing lets macOS remember the microphone permission between launches.
 # Sign the insides first; the app signature seals them.

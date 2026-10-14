@@ -4,6 +4,8 @@
 <dict>
     <key>CFBundleExecutable</key>
     <string>OpenEar</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>io.github.thebikramlama.openear</string>
     <key>CFBundleName</key>

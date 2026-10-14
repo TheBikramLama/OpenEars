@@ -39,6 +39,8 @@ scripts/make-dmg.sh   # dist/OpenEar-<version>.dmg
 
 No Xcode needed; the Command Line Tools are enough.
 
+The app icon and the installer window background are drawn in code. After editing `scripts/render-art.swift`, run `scripts/render-art.sh` to update `assets/`.
+
 ## Releasing
 
 Push a version tag. GitHub Actions builds the DMG and publishes a release with it.
