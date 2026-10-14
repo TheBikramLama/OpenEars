@@ -15,9 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install SoX
-        run: brew install sox dylibbundler
-
       - name: Pick version
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -29,14 +26,6 @@ jobs:
 
       - name: Build app
         run: scripts/build.sh
-
-      - name: Check bundled SoX runs without Homebrew paths
-        run: |
-          if otool -L build/OpenEar.app/Contents/MacOS/sox build/OpenEar.app/Contents/Frameworks/*.dylib | grep /opt/homebrew; then
-            echo "::error::Bundled SoX still links to Homebrew"
-            exit 1
-          fi
-          build/OpenEar.app/Contents/MacOS/sox --version
 
       - name: Build DMG
         run: scripts/make-dmg.sh

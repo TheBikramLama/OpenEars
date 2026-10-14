@@ -8,6 +8,18 @@ struct Settings: Codable, Equatable {
     var highpass = 80.0
     var buffer = 128
     var superHearing = false
+    var noiseReduction = false
+
+    var pauseDuringCalls = true
+    var duckingEnabled = false
+    var duckAmount = 10.0
+    var alertsEnabled = false
+    var alertSounds: Set<AlertSound> = [.doorbell, .knock, .alarm, .siren]
+    var alertTurnsOnAmbient = true
+    var autoStartOnHeadphones = false
+    /// Outputs OpenEar has played through, by Core Audio UID. Only these can auto-start it.
+    var trustedOutputs: [String] = []
+    var userPresets: [SoundPreset] = []
 
     var scheduleEnabled = false
     var startMinutes = 9 * 60
@@ -30,26 +42,6 @@ struct Settings: Codable, Equatable {
         UserDefaults.standard.set(try? JSONEncoder().encode(self), forKey: Self.key)
     }
 
-    var soxArguments: [String] {
-        let base = [
-            "-q", "--buffer", String(buffer),
-            "-t", "coreaudio", inputDevice,
-            "-d",
-            "gain", Self.format(gain),
-            "bass", Self.format(bass),
-            "treble", Self.format(treble),
-            "highpass", Self.format(highpass),
-        ]
-        guard superHearing else { return base }
-        return base + [
-            // Lift the 2-4 kHz range where speech consonants and footsteps live.
-            "equalizer", "3000", "1.5q", "6",
-            // Boost quiet sounds up to +20 dB and hold loud ones at -6 dB, so a slammed door can't blast your ears.
-            // No look-ahead delay (last 0) to keep latency down.
-            "compand", "0.005,0.25", "6:-70,-60,-40,-20,-20,-12,0,-6", "0", "-90", "0",
-        ]
-    }
-
     func isInSchedule(at date: Date, calendar: Calendar = .current) -> Bool {
         let parts = calendar.dateComponents([.weekday, .hour, .minute], from: date)
         guard let weekday = parts.weekday, days.contains(weekday) else { return false }
@@ -61,7 +53,44 @@ struct Settings: Codable, Equatable {
         return now >= startMinutes || now < endMinutes
     }
 
-    private static func format(_ value: Double) -> String {
-        String(format: "%.0f", value)
+    /// The settings a preset captures.
+    var sound: SoundPreset {
+        get {
+            SoundPreset(name: "", gain: gain, bass: bass, treble: treble, highpass: highpass,
+                        superHearing: superHearing, noiseReduction: noiseReduction)
+        }
+        set {
+            gain = newValue.gain
+            bass = newValue.bass
+            treble = newValue.treble
+            highpass = newValue.highpass
+            superHearing = newValue.superHearing
+            noiseReduction = newValue.noiseReduction
+        }
+    }
+}
+
+struct SoundPreset: Codable, Equatable, Identifiable {
+    var name: String
+    var gain: Double
+    var bass: Double
+    var treble: Double
+    var highpass: Double
+    var superHearing: Bool
+    var noiseReduction: Bool
+
+    var id: String { name }
+
+    static let builtIn: [SoundPreset] = [
+        SoundPreset(name: "Home", gain: 15, bass: 4, treble: -2, highpass: 80, superHearing: false, noiseReduction: false),
+        SoundPreset(name: "Office", gain: 20, bass: 6, treble: -3, highpass: 120, superHearing: false, noiseReduction: true),
+        SoundPreset(name: "Café", gain: 22, bass: 0, treble: 2, highpass: 160, superHearing: true, noiseReduction: true),
+        // A high cut-off keeps wind rumble out.
+        SoundPreset(name: "Outdoors", gain: 18, bass: -2, treble: 0, highpass: 220, superHearing: false, noiseReduction: false),
+    ]
+
+    func sounds(like other: SoundPreset) -> Bool {
+        gain == other.gain && bass == other.bass && treble == other.treble && highpass == other.highpass
+            && superHearing == other.superHearing && noiseReduction == other.noiseReduction
     }
 }

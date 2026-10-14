@@ -32,6 +32,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeys.register(keyCode: kVK_ANSI_S, modifiers: modifiers) { [controller] in
             controller.settings.superHearing.toggle()
         }
+        hotKeys.register(keyCode: kVK_ANSI_H, modifiers: modifiers, onRelease: { [controller] in
+            controller.setHolding(false)
+        }) { [controller] in
+            controller.setHolding(true)
+        }
 
         // Announce every change, including ones made by the schedule.
         controller.$isOn.removeDuplicates().dropFirst()
@@ -43,6 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [hud] isOn in
                 hud.show(symbol: "ear.badge.waveform", text: isOn ? "Super hearing on" : "Super hearing off")
             }
+            .store(in: &subscriptions)
+        controller.alerts
+            .sink { [hud] sound in hud.show(symbol: sound.symbol, text: "\(sound.title) nearby") }
             .store(in: &subscriptions)
     }
 
@@ -75,9 +83,9 @@ struct MenuBarIcon: View {
     // Tinted while active so it stands out from the monochrome menu bar.
     private var icon: NSImage {
         let superHearing = controller.settings.superHearing
-        let name = !controller.isOn ? "ear" : superHearing ? "ear.badge.waveform" : "ear.fill"
+        let name = !controller.isListening ? "ear" : superHearing ? "ear.badge.waveform" : "ear.fill"
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "OpenEar") ?? NSImage()
-        guard controller.isOn else { return image }
+        guard controller.isListening else { return image }
         let color: NSColor = superHearing ? .systemPurple : .systemTeal
         let tinted = image.withSymbolConfiguration(.init(paletteColors: [color])) ?? image
         tinted.isTemplate = false

@@ -20,55 +20,26 @@ struct MenuView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Toggle(isOn: $controller.settings.superHearing) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Super hearing")
-                    Text("Boosts quiet sounds and voices, caps loud ones")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            HStack(spacing: 8) {
+                featureTile("Super hearing", "ear.badge.waveform", $controller.settings.superHearing)
+                featureTile("Noise reduction", "waveform.badge.minus", $controller.settings.noiseReduction)
             }
-            .toggleStyle(.switch)
 
-            Text("⌃⌥⌘O on/off  ·  ⌃⌥⌘S super hearing")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            presetRow
 
             Divider()
 
-            Picker("Mic", selection: $controller.settings.inputDevice) {
-                ForEach(micOptions, id: \.self) { Text($0).tag($0) }
-            }
-
-            slider("Volume", $controller.settings.gain, 0...40, unit: "dB")
-            slider("Bass", $controller.settings.bass, -10...12, unit: "dB")
-            slider("Treble", $controller.settings.treble, -12...6, unit: "dB")
-            slider("Rumble cut", $controller.settings.highpass, 20...300, unit: "Hz")
-
-            Picker("Latency", selection: $controller.settings.buffer) {
-                ForEach(buffers, id: \.frames) { Text($0.label).tag($0.frames) }
-            }
-
-            Divider()
-
-            Toggle("Schedule", isOn: $controller.settings.scheduleEnabled)
-            if controller.settings.scheduleEnabled {
-                HStack {
-                    DatePicker("From", selection: time($controller.settings.startMinutes), displayedComponents: .hourAndMinute)
-                    DatePicker("to", selection: time($controller.settings.endMinutes), displayedComponents: .hourAndMinute)
-                }
-                .labelsHidden()
-                HStack(spacing: 4) {
-                    ForEach(1...7, id: \.self) { day in
-                        Toggle(Calendar.current.veryShortWeekdaySymbols[day - 1], isOn: weekday(day))
-                            .toggleStyle(.button)
-                    }
-                }
-            }
+            DisclosureGroup("Sound") { soundSection.padding(.top, 8) }
+            DisclosureGroup("Smart features") { smartSection.padding(.top, 8) }
+            DisclosureGroup("Schedule") { scheduleSection.padding(.top, 8) }
 
             Divider()
 
             Toggle("Launch at login", isOn: $controller.launchAtLogin)
+
+            Text("⌃⌥⌘O on/off  ·  ⌃⌥⌘S super hearing  ·  hold ⌃⌥⌘H to hear")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
 
             HStack {
                 Button("Reset sound") { controller.resetAudioSettings() }
@@ -77,8 +48,12 @@ struct MenuView: View {
             }
         }
         .padding()
-        .frame(width: 300)
+        .frame(width: 320)
+        // The default translucent background turns grey and washed out over bright windows.
+        .background(MenuMaterial().ignoresSafeArea())
     }
+
+    // MARK: Top card
 
     private var ambientCard: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -100,12 +75,10 @@ struct MenuView: View {
                 chip("Until…", .until, systemImage: "clock") { controller.showingUntilPicker = true }
                     .popover(isPresented: $controller.showingUntilPicker) { untilPicker }
             }
-            Text("Click a chip to start. Click it again to stop")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            LevelMeter(controller: controller)
         }
         .padding(12)
-        .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var headline: String {
@@ -115,10 +88,13 @@ struct MenuView: View {
     }
 
     private func chip(_ title: String, _ chip: TimerChip, systemImage: String? = nil, action: (() -> Void)? = nil) -> some View {
-        let isActive = controller.activeChip == chip
-        return Button {
+        pill(title, systemImage: systemImage, isActive: controller.activeChip == chip) {
             if let action { action() } else { controller.select(chip) }
-        } label: {
+        }
+    }
+
+    private func pill(_ title: String, systemImage: String? = nil, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             Group {
                 if let systemImage { Label(title, systemImage: systemImage) } else { Text(title) }
             }
@@ -126,9 +102,32 @@ struct MenuView: View {
             .lineLimit(1)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 6)
+            .padding(.horizontal, 4)
             .foregroundStyle(isActive ? Color.white : Color.primary)
-            .background(isActive ? Color.accentColor : Color.secondary.opacity(0.18), in: Capsule())
+            .background(isActive ? Color.accentColor : Color.primary.opacity(0.1), in: Capsule())
             .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func featureTile(_ title: String, _ symbol: String, _ isOn: Binding<Bool>) -> some View {
+        Button { isOn.wrappedValue.toggle() } label: {
+            HStack(spacing: 8) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 28, height: 28)
+                    .foregroundStyle(isOn.wrappedValue ? Color.white : Color.primary)
+                    .background(isOn.wrappedValue ? Color.accentColor : Color.primary.opacity(0.1), in: Circle())
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.callout.weight(.medium)).lineLimit(1)
+                    Text(isOn.wrappedValue ? "On" : "Off").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity)
+            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+            .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
     }
@@ -139,6 +138,136 @@ struct MenuView: View {
             controller.showingUntilPicker = false
         }
     }
+
+    // MARK: Presets
+
+    private var presetRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Presets").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
+                ForEach(SoundPreset.builtIn + controller.settings.userPresets) { preset in
+                    pill(preset.name, isActive: controller.activePreset?.name == preset.name) {
+                        controller.apply(preset)
+                    }
+                    .contextMenu {
+                        if controller.settings.userPresets.contains(preset) {
+                            Button("Delete “\(preset.name)”") { controller.deletePreset(preset) }
+                        }
+                    }
+                }
+                pill("Save…", systemImage: "plus", isActive: false) { askForPresetName() }
+            }
+        }
+    }
+
+    private func askForPresetName() {
+        let alert = NSAlert()
+        alert.messageText = "Save sound as a preset"
+        alert.informativeText = "Saves the current volume, tone, super hearing and noise reduction. Right-click a preset to delete it."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        field.placeholderString = "Preset name"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        NSApp.activate()
+        if alert.runModal() == .alertFirstButtonReturn {
+            let name = field.stringValue.trimmingCharacters(in: .whitespaces)
+            if !name.isEmpty { controller.savePreset(named: name) }
+        }
+    }
+
+    // MARK: Sections
+
+    private var soundSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("Mic", selection: $controller.settings.inputDevice) {
+                ForEach(micOptions, id: \.self) { Text($0).tag($0) }
+            }
+            slider("Volume", $controller.settings.gain, 0...40, unit: "dB")
+            slider("Bass", $controller.settings.bass, -10...12, unit: "dB")
+            slider("Treble", $controller.settings.treble, -12...6, unit: "dB")
+            slider("Rumble cut", $controller.settings.highpass, 20...300, unit: "Hz")
+            Picker("Latency", selection: $controller.settings.buffer) {
+                ForEach(buffers, id: \.frames) { Text($0.label).tag($0.frames) }
+            }
+        }
+    }
+
+    private var smartSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            option("Pause during calls", "Stops while another app uses the mic, like Zoom or FaceTime",
+                   $controller.settings.pauseDuringCalls)
+
+            option("Lower music when someone talks", "Turns other audio down while people speak nearby",
+                   $controller.settings.duckingEnabled)
+            if controller.settings.duckingEnabled {
+                slider("Lower by", $controller.settings.duckAmount, 4...24, unit: "dB")
+                if controller.duckingUnavailable {
+                    Text("These headphones don't let apps change their volume.")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+            }
+
+            option("Sound alerts", "Notifies you about important sounds, even while ambient sound is off",
+                   $controller.settings.alertsEnabled)
+            if controller.settings.alertsEnabled {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 2), spacing: 6) {
+                    ForEach(AlertSound.allCases) { sound in
+                        pill(sound.title, systemImage: sound.symbol, isActive: controller.settings.alertSounds.contains(sound)) {
+                            if controller.settings.alertSounds.contains(sound) {
+                                controller.settings.alertSounds.remove(sound)
+                            } else {
+                                controller.settings.alertSounds.insert(sound)
+                            }
+                        }
+                    }
+                }
+                Toggle("Let the room in for 30 seconds", isOn: $controller.settings.alertTurnsOnAmbient)
+            }
+
+            option("Start when headphones connect", "Only for headphones you've used OpenEar with before",
+                   $controller.settings.autoStartOnHeadphones)
+            if controller.settings.autoStartOnHeadphones, !controller.settings.trustedOutputs.isEmpty {
+                Button("Forget \(controller.settings.trustedOutputs.count) remembered headphones") {
+                    controller.forgetHeadphones()
+                }
+                .font(.caption)
+            }
+        }
+    }
+
+    private var scheduleSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("Turn on automatically", isOn: $controller.settings.scheduleEnabled)
+            if controller.settings.scheduleEnabled {
+                HStack {
+                    DatePicker("From", selection: time($controller.settings.startMinutes), displayedComponents: .hourAndMinute)
+                    DatePicker("to", selection: time($controller.settings.endMinutes), displayedComponents: .hourAndMinute)
+                }
+                .labelsHidden()
+                HStack(spacing: 4) {
+                    ForEach(1...7, id: \.self) { day in
+                        Toggle(Calendar.current.veryShortWeekdaySymbols[day - 1], isOn: weekday(day))
+                            .toggleStyle(.button)
+                    }
+                }
+            }
+        }
+    }
+
+    private func option(_ title: String, _ detail: String, _ isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+    }
+
+    // MARK: Helpers
 
     // Keep the saved mic selectable even while it's unplugged.
     private var micOptions: [String] {
@@ -179,4 +308,44 @@ struct MenuView: View {
             }
         )
     }
+}
+
+/// Live mic level, refreshed 20 times a second while the menu is open.
+private struct LevelMeter: View {
+    @ObservedObject var controller: OpenEarController
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.05)) { _ in
+            let fraction = controller.isListening || controller.settings.alertsEnabled
+                ? CGFloat(max(0, min(1, (controller.inputLevel + 60) / 60)))
+                : 0
+            HStack(spacing: 8) {
+                Image(systemName: "mic.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.primary.opacity(0.1))
+                        Capsule()
+                            .fill(LinearGradient(colors: [.teal, .green, .yellow], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: geometry.size.width * fraction)
+                    }
+                }
+                .frame(height: 6)
+            }
+        }
+    }
+}
+
+/// The same opaque-feeling material as system menus, kept active even when OpenEar isn't the frontmost app.
+private struct MenuMaterial: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .menu
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }
