@@ -10,6 +10,11 @@ enum TimerChip: Hashable {
     case until
 }
 
+/// The settings pages under the section buttons in the menu.
+enum MenuSection: CaseIterable {
+    case sound, smart, schedule
+}
+
 @MainActor
 final class OpenEarController: ObservableObject {
     /// The user's on/off choice. Calls, speakers or a missing mic can still keep sound from playing; see `isListening`.
@@ -37,6 +42,7 @@ final class OpenEarController: ObservableObject {
     // Held here because SwiftUI's @State macro isn't available when building without Xcode.
     @Published var showingUntilPicker = false
     @Published var untilTime = Date().addingTimeInterval(3600)
+    @Published var openSection: MenuSection?
 
     /// Fires when a sound alert goes off, for the on-screen badge.
     let alerts = PassthroughSubject<AlertSound, Never>()

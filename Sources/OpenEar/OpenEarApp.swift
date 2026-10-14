@@ -4,17 +4,34 @@ import Combine
 import Sparkle
 import SwiftUI
 
+// Plain AppKit start-up. A SwiftUI App needs a scene, and the only kind that fits a menu bar app
+// (MenuBarExtra) grew with its content but never shrank. The menu bar item and its popover live in AppDelegate.
 @main
-struct OpenEarApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+@MainActor
+enum OpenEarMain {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.mainMenu = editMenu()
+        app.run()
+    }
 
-    var body: some Scene {
-        MenuBarExtra {
-            MenuView(controller: appDelegate.controller) { appDelegate.checkForUpdates() }
-        } label: {
-            MenuBarIcon(controller: appDelegate.controller)
-        }
-        .menuBarExtraStyle(.window)
+    // Never shown in a menu bar app, but its shortcuts make copy and paste work in text fields.
+    private static func editMenu() -> NSMenu {
+        let edit = NSMenu(title: "Edit")
+        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        let editItem = NSMenuItem()
+        editItem.submenu = edit
+        let menu = NSMenu()
+        menu.addItem(editItem)
+        return menu
     }
 }
 
@@ -31,8 +48,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updater.checkForUpdates(nil)
     }
     private var subscriptions = Set<AnyCancellable>()
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let popover = NSPopover()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        setUpMenuBarItem()
+
         let modifiers = controlKey | optionKey | cmdKey
         hotKeys.register(keyCode: kVK_ANSI_O, modifiers: modifiers) { [controller] in
             controller.isOn.toggle()
@@ -62,6 +83,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &subscriptions)
     }
 
+    private func setUpMenuBarItem() {
+        let menu = NSHostingController(rootView: MenuView(controller: controller) { [weak self] in
+            self?.popover.performClose(nil)
+            self?.checkForUpdates()
+        })
+        // The popover follows the SwiftUI content's size, animating as sections open and close.
+        menu.sizingOptions = .preferredContentSize
+        popover.contentViewController = menu
+        popover.behavior = .transient
+        popover.animates = true
+
+        statusItem.button?.target = self
+        statusItem.button?.action = #selector(statusItemClicked)
+        statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        controller.$isListening.combineLatest(controller.$settings.map(\.superHearing))
+            .removeDuplicates { $0 == $1 }
+            .sink { [statusItem] listening, superHearing in
+                statusItem.button?.image = MenuBarIcon.image(listening: listening, superHearing: superHearing)
+            }
+            .store(in: &subscriptions)
+    }
+
+    // Left click opens the full menu. Right click, or Control-click, shows quick actions.
+    @objc private func statusItemClicked() {
+        guard let button = statusItem.button else { return }
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
+            popover.performClose(nil)
+            quickMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY + 6), in: button)
+        } else if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            // Activate so the pickers and text fields inside take keyboard input.
+            NSApp.activate()
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
+    }
+
+    private func quickMenu() -> NSMenu {
+        let menu = NSMenu()
+        let ambient = menu.addItem(withTitle: "Ambient Sound", action: #selector(toggleAmbient), keyEquivalent: "")
+        ambient.state = controller.isOn ? .on : .off
+        let superHearing = menu.addItem(withTitle: "Super Hearing", action: #selector(toggleSuperHearing), keyEquivalent: "")
+        superHearing.state = controller.settings.superHearing ? .on : .off
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdatesFromMenu), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit OpenEar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        for item in menu.items where item.action != #selector(NSApplication.terminate(_:)) { item.target = self }
+        return menu
+    }
+
+    @objc private func toggleAmbient() { controller.isOn.toggle() }
+    @objc private func toggleSuperHearing() { controller.settings.superHearing.toggle() }
+    @objc private func checkForUpdatesFromMenu() { checkForUpdates() }
+
     /// openear://on, off, toggle, super. For Shortcuts, Raycast or scripts.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
@@ -81,19 +158,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-struct MenuBarIcon: View {
-    @ObservedObject var controller: OpenEarController
-
-    var body: some View {
-        Image(nsImage: icon)
-    }
-
+enum MenuBarIcon {
     // Tinted while active so it stands out from the monochrome menu bar.
-    private var icon: NSImage {
-        let superHearing = controller.settings.superHearing
-        let name = !controller.isListening ? "ear" : superHearing ? "ear.badge.waveform" : "ear.fill"
+    static func image(listening: Bool, superHearing: Bool) -> NSImage {
+        let name = !listening ? "ear" : superHearing ? "ear.badge.waveform" : "ear.fill"
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "OpenEar") ?? NSImage()
-        guard controller.isListening else { return image }
+        guard listening else {
+            image.isTemplate = true
+            return image
+        }
         let color: NSColor = superHearing ? .systemPurple : .systemTeal
         let tinted = image.withSymbolConfiguration(.init(paletteColors: [color])) ?? image
         tinted.isTemplate = false

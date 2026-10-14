@@ -20,6 +20,7 @@ AirPods can let the world in. Wired IEMs can't. OpenEar plays your Mac's microph
 - **Feedback guard** pauses automatically if your Mac switches to its speakers, and resumes when your headphones come back
 - **Recovers by itself** if macOS interrupts the microphone, for example after sleep
 - **In-app updates**: OpenEar checks GitHub for new versions. Use **Check for Updates…** in the menu any time
+- **Right-click the menu bar icon** for quick actions: ambient sound, super hearing, updates and quit
 - **URL commands** for Shortcuts, Raycast or scripts: `open "openear://toggle"` (also `on`, `off`, `super`)
 
 Sound recognition runs on your Mac with Apple's built-in classifier. No audio leaves your computer.

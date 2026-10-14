@@ -30,9 +30,12 @@ struct MenuView: View {
 
             Divider()
 
-            DisclosureGroup("Sound") { soundSection.padding(.top, 8) }
-            DisclosureGroup("Smart features") { smartSection.padding(.top, 8) }
-            DisclosureGroup("Schedule") { scheduleSection.padding(.top, 8) }
+            sectionPicker
+            if let section = controller.openSection {
+                sectionPage(section)
+                    // Only the contents fade. Animating the panel's own resize is what made it feel slow.
+                    .transition(.opacity.animation(.easeOut(duration: 0.12)))
+            }
 
             Divider()
 
@@ -181,6 +184,32 @@ struct MenuView: View {
 
     // MARK: Sections
 
+    // The buttons never move when a page opens, so quick repeat clicks can't land on a slider below.
+    private var sectionPicker: some View {
+        HStack(spacing: 6) {
+            sectionButton(.sound, "Sound", "slider.horizontal.3")
+            sectionButton(.smart, "Smart", "sparkles")
+            sectionButton(.schedule, "Schedule", "calendar")
+        }
+    }
+
+    private func sectionButton(_ section: MenuSection, _ title: String, _ symbol: String) -> some View {
+        pill(title, systemImage: symbol, isActive: controller.openSection == section) {
+            controller.openSection = controller.openSection == section ? nil : section
+        }
+    }
+
+    private func sectionPage(_ section: MenuSection) -> some View {
+        Group {
+            switch section {
+            case .sound: soundSection
+            case .smart: smartSection
+            case .schedule: scheduleSection
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var soundSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Picker("Mic", selection: $controller.settings.inputDevice) {
@@ -241,7 +270,8 @@ struct MenuView: View {
 
     private var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle("Turn on automatically", isOn: $controller.settings.scheduleEnabled)
+            option("Turn on automatically", "On during these hours, on the days you pick",
+                   $controller.settings.scheduleEnabled)
             if controller.settings.scheduleEnabled {
                 HStack {
                     DatePicker("From", selection: time($controller.settings.startMinutes), displayedComponents: .hourAndMinute)
@@ -259,14 +289,18 @@ struct MenuView: View {
     }
 
     private func option(_ title: String, _ detail: String, _ isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
+        // A plain switch Toggle sits right after its label, so switches ended up at different spots.
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                 Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Toggle(title, isOn: isOn)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .labelsHidden()
         }
-        .toggleStyle(.switch)
-        .controlSize(.small)
     }
 
     // MARK: Helpers
@@ -286,7 +320,8 @@ struct MenuView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
-            Slider(value: value, in: range, step: 1)
+            // A step would draw a tick per value (281 for Rumble cut), which made the Sound page slow to open.
+            Slider(value: Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0.rounded() }), in: range)
         }
     }
 
