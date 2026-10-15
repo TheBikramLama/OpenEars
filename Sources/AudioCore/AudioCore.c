@@ -8,6 +8,7 @@
 #define MAX_FRAMES 4096
 #define RING_SIZE 16384          // ~0.34 s at 48 kHz. Power of two.
 #define ANALYSIS_SIZE 131072     // ~2.7 s at 48 kHz. Power of two.
+#define CLICK_LOOKAHEAD 64       // ~1.3 ms at 48 kHz: just enough to turn down a keystroke before it plays.
 
 typedef struct { float b0, b1, b2, a1, a2; } Biquad;
 typedef struct { float z1, z2; } BiquadState;
@@ -50,6 +51,13 @@ struct OECore {
     float gainSmoothing, duckSmoothing;
     float compEnv, compAttack, compRelease;
     float gateEnv, gateFloorDB, gateGain, gateAttack, gateRelease, gateFloorRise;
+    Biquad clickDetect;
+    BiquadState clickDetectState;
+    float clickFast, clickSlow, clickFastAttack, clickFastRelease, clickSlowAttack, clickSlowRelease;
+    float clickGain, clickRecover;
+    uint32_t clickHold, clickHoldFrames;
+    float lookahead[CLICK_LOOKAHEAD];
+    uint32_t lookaheadPos;
     float levelDecayPerFrame;
 
     _Atomic float level;
@@ -143,6 +151,15 @@ OECore *oe_core_create(double sampleRate) {
     core->gateFloorDB = -60;
     core->gateGain = 1;
     core->gateFloorRise = (float)(3.0 / sampleRate); // dB per frame: the noise floor estimate climbs 3 dB/s
+    // Keystrokes are clicks: broadband, but it's the treble that jumps out of the background.
+    core->clickDetect = highpass(sampleRate, 2500, 0.707);
+    core->clickFastAttack = coefficient(sampleRate, 0.0001);
+    core->clickFastRelease = coefficient(sampleRate, 0.005);
+    core->clickSlowAttack = coefficient(sampleRate, 0.02);
+    core->clickSlowRelease = coefficient(sampleRate, 0.1);
+    core->clickGain = 1;
+    core->clickRecover = 1 - coefficient(sampleRate, 0.015);
+    core->clickHoldFrames = (uint32_t)(0.008 * sampleRate); // at least the click itself
     core->levelDecayPerFrame = (float)(30.0 / sampleRate);
     atomic_store(&core->level, -120.0f);
     return core;
@@ -210,6 +227,33 @@ int oe_core_read_analysis(OECore *core, float *destination, int maxFrames) {
 
 // MARK: Processing
 
+// Turns keystrokes down by 20 dB. A click jumps 18 dB above the recent treble level within a millisecond;
+// voices, music and footsteps rise far more slowly. The audio is delayed slightly so the dip lands on time.
+static inline float suppressClicks(OECore *core, float x) {
+    float d = fabsf(run(&core->clickDetect, &core->clickDetectState, x));
+    core->clickFast = d > core->clickFast ? core->clickFastAttack * core->clickFast + (1 - core->clickFastAttack) * d
+                                          : core->clickFastRelease * core->clickFast + (1 - core->clickFastRelease) * d;
+    float f = core->clickFast;
+    // The background estimate may at most double every ~20 ms, so one keystroke can't hide the next,
+    // while a sound that stays loud is accepted within about 0.1 s.
+    float rising = fminf(f, 2 * core->clickSlow + 1e-6f);
+    core->clickSlow = f > core->clickSlow ? core->clickSlowAttack * core->clickSlow + (1 - core->clickSlowAttack) * rising
+                                          : core->clickSlowRelease * core->clickSlow + (1 - core->clickSlowRelease) * f;
+    if (f > 8 * core->clickSlow && f > 0.002f) core->clickHold = core->clickHoldFrames;
+    // Stay down only while the click is still ringing, so voices underneath come straight back.
+    else if (core->clickHold > 0 && f > 3 * core->clickSlow) core->clickHold = core->clickHold > 1 ? core->clickHold : 2;
+
+    float target = core->clickHold > 0 ? 0.1f : 1;
+    if (core->clickHold > 0) core->clickHold--;
+    // Duck within a few samples, come back over ~15 ms so the dip itself doesn't click.
+    core->clickGain += (target - core->clickGain) * (target < core->clickGain ? 0.3f : core->clickRecover);
+
+    float delayed = core->lookahead[core->lookaheadPos];
+    core->lookahead[core->lookaheadPos] = x;
+    core->lookaheadPos = (core->lookaheadPos + 1) % CLICK_LOOKAHEAD;
+    return delayed * core->clickGain;
+}
+
 static void process(OECore *core, float *samples, uint32_t frames) {
     pickUpSettings(core);
     const Settings *s = &core->active;
@@ -220,6 +264,7 @@ static void process(OECore *core, float *samples, uint32_t frames) {
         sumSquares += (double)x * x;
 
         if (s->noiseGate) {
+            x = suppressClicks(core, x);
             float a = fabsf(x);
             core->gateEnv = a > core->gateEnv ? core->gateAttack * core->gateEnv + (1 - core->gateAttack) * a
                                               : core->gateRelease * core->gateEnv + (1 - core->gateRelease) * a;

@@ -9,7 +9,7 @@ AirPods can let the world in. Wired IEMs can't. OpenEar plays your Mac's microph
 - **Ambient sound** on and off from the menu bar, a timer (15m to 8h, or until a set time) or a weekly schedule
 - **Hold to hear**: hold `⌃⌥⌘H` to let the room in, release to go back to quiet
 - **Super hearing** makes quiet sounds and voices louder and caps loud ones, so a slammed door won't blast your ears
-- **Noise reduction** quiets steady background hiss and hum between sounds
+- **Noise reduction** quiets steady background hiss and hum between sounds, and turns down keyboard clicks
 - **Presets**: Home, Office, Café and Outdoors, plus your own. Right-click one of yours to delete it
 - **Sound controls**: volume, bass, treble, rumble cut and latency, with a live mic level meter
 - **Pause during calls** stops while Zoom, FaceTime or another app uses the mic, and resumes after

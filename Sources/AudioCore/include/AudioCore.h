@@ -15,7 +15,7 @@ typedef struct {
     float trebleDB;
     float highpassHz;
     bool superHearing;
-    /// Software noise reduction: turns down steady background noise between sounds.
+    /// Software noise reduction: turns down steady background noise between sounds, and keyboard clicks.
     bool noiseGate;
     /// Extra gain while other audio is ducked, so the room stays as loud as before.
     float duckCompensationDB;
