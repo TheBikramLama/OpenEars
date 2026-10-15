@@ -10,6 +10,7 @@ AirPods can let the world in. Wired IEMs can't. OpenEar plays your Mac's microph
 - **Hold to hear**: hold `⌃⌥⌘H` to let the room in, release to go back to quiet
 - **Super hearing** makes quiet sounds and voices louder and caps loud ones, so a slammed door won't blast your ears
 - **Noise reduction** quiets steady background hiss and hum between sounds, and turns down keyboard clicks
+- **Focus sounds**: fireplace, rain, thunderstorm, night, rainforest, ocean, wind and stream, mixed with a slider each. Generated live from random events, so they never loop
 - **Presets**: Home, Office, Café and Outdoors, plus your own. Right-click one of yours to delete it
 - **Sound controls**: volume, bass, treble, rumble cut and latency, with a live mic level meter
 - **Pause during calls** stops while Zoom, FaceTime or another app uses the mic, and resumes after
@@ -20,8 +21,8 @@ AirPods can let the world in. Wired IEMs can't. OpenEar plays your Mac's microph
 - **Feedback guard** pauses automatically if your Mac switches to its speakers, and resumes when your headphones come back
 - **Recovers by itself** if macOS interrupts the microphone, for example after sleep
 - **In-app updates**: OpenEar checks GitHub for new versions. Use **Check for Updates…** in the menu any time
-- **Right-click the menu bar icon** for quick actions: ambient sound, super hearing, updates and quit
-- **URL commands** for Shortcuts, Raycast or scripts: `open "openear://toggle"` (also `on`, `off`, `super`)
+- **Right-click the menu bar icon** for quick actions: ambient sound, super hearing, focus sounds, updates and quit
+- **URL commands** for Shortcuts, Raycast or scripts: `open "openear://toggle"` (also `on`, `off`, `super`, `focus`)
 
 Sound recognition runs on your Mac with Apple's built-in classifier. No audio leaves your computer.
 

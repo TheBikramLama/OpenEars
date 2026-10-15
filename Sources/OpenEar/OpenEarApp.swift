@@ -78,6 +78,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 hud.show(symbol: "ear.badge.waveform", text: isOn ? "Super hearing on" : "Super hearing off")
             }
             .store(in: &subscriptions)
+        controller.$focusOn.removeDuplicates().dropFirst()
+            .sink { [hud] isOn in
+                hud.show(symbol: "headphones", text: isOn ? "Focus sounds on" : "Focus sounds off")
+            }
+            .store(in: &subscriptions)
         controller.alerts
             .sink { [hud] sound in hud.show(symbol: sound.symbol, text: "\(sound.title) nearby") }
             .store(in: &subscriptions)
@@ -97,10 +102,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.target = self
         statusItem.button?.action = #selector(statusItemClicked)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        controller.$isListening.combineLatest(controller.$settings.map(\.superHearing))
+        controller.$isListening.combineLatest(controller.$settings.map(\.superHearing), controller.$focusPlaying)
             .removeDuplicates { $0 == $1 }
-            .sink { [statusItem] listening, superHearing in
-                statusItem.button?.image = MenuBarIcon.image(listening: listening, superHearing: superHearing)
+            .sink { [statusItem] listening, superHearing, focus in
+                statusItem.button?.image = MenuBarIcon.image(listening: listening, superHearing: superHearing, focus: focus)
             }
             .store(in: &subscriptions)
     }
@@ -127,6 +132,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ambient.state = controller.isOn ? .on : .off
         let superHearing = menu.addItem(withTitle: "Super Hearing", action: #selector(toggleSuperHearing), keyEquivalent: "")
         superHearing.state = controller.settings.superHearing ? .on : .off
+        let focus = menu.addItem(withTitle: "Focus Sounds", action: #selector(toggleFocus), keyEquivalent: "")
+        focus.state = controller.focusOn ? .on : .off
         menu.addItem(.separator())
         menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdatesFromMenu), keyEquivalent: "")
         menu.addItem(.separator())
@@ -137,9 +144,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleAmbient() { controller.isOn.toggle() }
     @objc private func toggleSuperHearing() { controller.settings.superHearing.toggle() }
+    @objc private func toggleFocus() { controller.focusOn.toggle() }
     @objc private func checkForUpdatesFromMenu() { checkForUpdates() }
 
-    /// openear://on, off, toggle, super. For Shortcuts, Raycast or scripts.
+    /// openear://on, off, toggle, super, focus. For Shortcuts, Raycast or scripts.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
             switch url.host {
@@ -147,6 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "off": controller.isOn = false
             case "toggle": controller.isOn.toggle()
             case "super": controller.settings.superHearing.toggle()
+            case "focus": controller.focusOn.toggle()
             default: break
             }
         }
@@ -160,9 +169,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 enum MenuBarIcon {
     // Tinted while active so it stands out from the monochrome menu bar.
-    static func image(listening: Bool, superHearing: Bool) -> NSImage {
-        let name = !listening ? "ear" : superHearing ? "ear.badge.waveform" : "ear.fill"
+    static func image(listening: Bool, superHearing: Bool, focus: Bool) -> NSImage {
+        // The room takes priority: hold-to-hear and alerts can let it in during Focus.
+        let name = listening ? (superHearing ? "ear.badge.waveform" : "ear.fill") : focus ? "headphones" : "ear"
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "OpenEar") ?? NSImage()
+        // Focus uses the plain menu bar style, like the idle ear: indigo was too dark to see.
         guard listening else {
             image.isTemplate = true
             return image

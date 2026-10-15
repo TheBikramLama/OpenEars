@@ -9,6 +9,10 @@ struct Settings: Codable, Equatable {
     var buffer = 128
     var superHearing = false
     var noiseReduction = false
+    /// Focus mix, 0 to 1 per FocusScene raw value.
+    var focusLevels: [String: Double] = ["fire": 0.5, "rain": 0.6]
+    /// Name of the last dice roll, cleared once a slider moves.
+    var focusMixName: String? = "Rainy cabin"
 
     var pauseDuringCalls = true
     var duckingEnabled = false

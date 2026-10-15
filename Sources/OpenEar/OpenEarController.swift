@@ -22,6 +22,16 @@ final class OpenEarController: ObservableObject {
         didSet {
             guard isOn != oldValue else { return }
             if !isOn { clearTimer() }
+            if isOn { focusOn = false }
+            reconcile()
+        }
+    }
+
+    /// Focus sounds: generated nature scenes instead of the room. Ambient sound and Focus turn each other off.
+    @Published var focusOn = false {
+        didSet {
+            guard focusOn != oldValue else { return }
+            if focusOn { isOn = false }
             reconcile()
         }
     }
@@ -34,6 +44,7 @@ final class OpenEarController: ObservableObject {
     /// Room sound is actually playing in the headphones right now.
     @Published private(set) var isListening = false
     @Published private(set) var isDucking = false
+    @Published private(set) var focusPlaying = false
     @Published private(set) var duckingUnavailable = false
     @Published private(set) var inputs: [String] = []
     @Published private(set) var offAt: Date?
@@ -77,6 +88,7 @@ final class OpenEarController: ObservableObject {
     private var holding = false
     private var alertListenUntil: Date?
     private var otherMicApp: String?
+    private let focusPlayer = FocusPlayer()
     private var lastOutputID: AudioDeviceID?
     private var speechStreak = 0
     private var lastSpeech = Date.distantPast
@@ -168,6 +180,7 @@ final class OpenEarController: ObservableObject {
         endDucking(immediately: true)
         listener?.stop()
         engine.stop()
+        focusPlayer.stop()
     }
 
     // MARK: The one place that decides what runs
@@ -177,6 +190,7 @@ final class OpenEarController: ObservableObject {
         let alertPlayback = alertListenUntil.map { $0 > Date() } ?? false
         let wantsSound = isOn || holding || alertPlayback
         let pausedForCall = settings.pauseDuringCalls ? otherMicApp : nil
+        updateFocus(pausedForCall: pausedForCall, roomIn: wantsSound)
         let onSpeakers = output.map { $0.isSpeaker } ?? true
 
         let playing = wantsSound && pausedForCall == nil && !onSpeakers
@@ -186,7 +200,7 @@ final class OpenEarController: ObservableObject {
         guard playing || analysing else {
             stopEngine()
             isListening = false
-            status = wantsSound ? pausedStatus(call: pausedForCall, output: output) : "Off"
+            status = wantsSound ? pausedStatus(call: pausedForCall, output: output) : idleStatus(call: pausedForCall)
             return
         }
 
@@ -226,8 +240,35 @@ final class OpenEarController: ObservableObject {
             status = holding && !isOn ? "Listening while you hold the shortcut" : "Listening through \(settings.inputDevice)"
             trust(output)
         } else {
-            status = wantsSound ? pausedStatus(call: pausedForCall, output: output) : "Off. Listening for alert sounds"
+            status = wantsSound ? pausedStatus(call: pausedForCall, output: output)
+                : focusPlaying ? "Playing focus sounds. Listening for alert sounds" : "Off. Listening for alert sounds"
         }
+    }
+
+    private func updateFocus(pausedForCall: String?, roomIn: Bool) {
+        guard focusOn, pausedForCall == nil else {
+            focusPlayer.stop()
+            focusPlaying = false
+            return
+        }
+        // Hold-to-hear and alerts let the room in: turn the scenes down rather than stopping them.
+        focusPlayer.setLevels(settings.focusLevels, master: roomIn ? 0.15 : 1)
+        if !focusPlayer.isPlaying {
+            do {
+                try focusPlayer.start()
+            } catch {
+                log.error("Couldn't start focus sounds: \(error.localizedDescription, privacy: .public)")
+                focusPlaying = false
+                return
+            }
+        }
+        focusPlaying = true
+    }
+
+    private func idleStatus(call: String?) -> String {
+        if focusPlaying { return "Playing focus sounds" }
+        if focusOn, let call { return "Focus sounds paused while \(call) uses the microphone" }
+        return focusOn ? "Focus sounds couldn't start" : "Off"
     }
 
     private func pausedStatus(call: String?, output: AudioDevice?) -> String {

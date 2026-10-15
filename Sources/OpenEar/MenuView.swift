@@ -26,6 +26,9 @@ struct MenuView: View {
                 featureTile("Noise reduction", "waveform.badge.minus", $controller.settings.noiseReduction)
             }
 
+            featureTile("Focus sounds", "headphones", $controller.focusOn)
+            if controller.focusOn { focusMixer }
+
             presetRow
 
             Divider()
@@ -147,6 +150,49 @@ struct MenuView: View {
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
+    }
+
+    private var focusMixer: some View {
+        VStack(spacing: 6) {
+            HStack {
+                Text(controller.settings.focusMixName ?? "Your mix")
+                    .font(.callout.weight(.semibold))
+                Spacer()
+                Button {
+                    let mix = FocusDice.roll(differentFrom: controller.settings.focusLevels)
+                    controller.settings.focusLevels = mix.levels
+                    controller.settings.focusMixName = mix.name
+                } label: {
+                    Label("Surprise me", systemImage: "dice.fill")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.borderless)
+                .help("A random mix of scenes that go well together")
+            }
+            ForEach(FocusScene.allCases) { scene in
+                HStack(spacing: 8) {
+                    Image(systemName: scene.symbol)
+                        .frame(width: 18)
+                        .foregroundStyle(.secondary)
+                    Text(scene.title)
+                        .frame(width: 92, alignment: .leading)
+                    Slider(value: focusLevel(scene), in: 0...1)
+                        .controlSize(.small)
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func focusLevel(_ scene: FocusScene) -> Binding<Double> {
+        Binding(
+            get: { controller.settings.focusLevels[scene.rawValue] ?? 0 },
+            set: {
+                controller.settings.focusLevels[scene.rawValue] = ($0 * 100).rounded() / 100
+                controller.settings.focusMixName = nil
+            }
+        )
     }
 
     private var untilPicker: some View {

@@ -3,6 +3,7 @@
 #include <AudioToolbox/AudioToolbox.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "Soundscape.h"
 
 /// Mic in, effects, headphones out. Owns the buffers shared between the input and output audio threads.
 typedef struct OECore OECore;
